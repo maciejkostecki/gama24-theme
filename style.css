@@ -1,0 +1,145 @@
+@charset "UTF-8";
+/*
+Theme Name:   Storefront Child
+Theme URI:    https://woocommerce.com/products/storefront/
+Description:  Child theme for Storefront. Add your customizations here so they survive parent theme updates.
+Author:       Gama24
+Author URI:   https://gama24.pl/
+Template:     storefront
+Version:      1.0.0
+License:      GNU General Public License v3 or later
+License URI:  https://www.gnu.org/licenses/gpl-3.0.html
+Text Domain:  storefront-child
+*/
+/* ==========================================================================
+   Theme colors.
+   Primary brand color, exposed both as a SCSS variable (for authoring) and a
+   CSS custom property (for use anywhere in the cascade or in inline styles).
+   ========================================================================== */
+:root {
+  --primary-red: #e3000f;
+}
+
+/* ==========================================================================
+   Product images: fit inside their container, never crop.
+   object-fit: contain scales the whole image to fit the available box while
+   preserving its aspect ratio, so nothing is clipped regardless of the
+   original image dimensions.
+   ========================================================================== */
+.woocommerce,
+.woocommerce-page {
+  /* Shop / archive / category loops and up-sells, related, cross-sells. */
+}
+.woocommerce ul.products li.product a img,
+.woocommerce-page ul.products li.product a img {
+  width: 100%;
+  height: 250px;
+  -o-object-fit: contain;
+     object-fit: contain;
+  -o-object-position: center;
+     object-position: center;
+}
+.woocommerce,
+.woocommerce-page {
+  /* Single product main image and gallery thumbnails. */
+}
+.woocommerce div.product div.images img,
+.woocommerce-page div.product div.images img {
+  width: 100%;
+  height: auto;
+  -o-object-fit: contain;
+     object-fit: contain;
+  -o-object-position: center;
+     object-position: center;
+}
+.woocommerce div.product div.images .woocommerce-product-gallery__image a,
+.woocommerce-page div.product div.images .woocommerce-product-gallery__image a {
+  display: block;
+}
+.woocommerce div.product div.images .flex-control-thumbs li img,
+.woocommerce-page div.product div.images .flex-control-thumbs li img {
+  height: 80px;
+  -o-object-fit: contain;
+     object-fit: contain;
+}
+.woocommerce,
+.woocommerce-page {
+  /* Cart, checkout and mini-cart line-item thumbnails. */
+}
+.woocommerce table.cart img,
+.woocommerce .cart_item img,
+.woocommerce ul.cart_list li img,
+.woocommerce ul.product_list_widget li img,
+.woocommerce-page table.cart img,
+.woocommerce-page .cart_item img,
+.woocommerce-page ul.cart_list li img,
+.woocommerce-page ul.product_list_widget li img {
+  -o-object-fit: contain;
+     object-fit: contain;
+}
+
+/* ==========================================================================
+   Single product: full-width content.
+   The sidebar is detached in functions.php on product pages; here we stretch
+   the content column to reclaim the freed space. The two-class selector
+   outranks Storefront's own `.content-area` width rule, so it wins regardless
+   of media-query source order.
+   ========================================================================== */
+.storefront-child-no-sidebar .content-area {
+  width: 100%;
+  float: none;
+  margin-right: 0;
+}
+
+/* ==========================================================================
+   Product Categories: collapsed accordion.
+   Only top-level categories show; each parent has a caret to expand its
+   children. Sub-lists are revealed by the .is-open class added in
+   assets/js/category-accordion.js. Covers both the classic widget and the
+   block (woocommerce/product-categories).
+   ========================================================================== */
+/* Toggle caret button injected before each parent's link (shared). */
+.cat-toggle {
+  display: inline-block;
+  width: 1.4em;
+  padding: 0;
+  margin: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  line-height: 1;
+  text-align: center;
+  cursor: pointer;
+}
+.cat-toggle::before {
+  content: "▸"; /* ▸ right-pointing triangle */
+  display: inline-block;
+  transition: transform 0.15s ease;
+}
+
+li.is-open > .cat-toggle::before {
+  transform: rotate(90deg); /* points down when expanded */
+}
+
+/* Classic "Product Categories" widget. */
+.widget_product_categories ul.product-categories .children {
+  display: none;
+}
+.widget_product_categories ul.product-categories li.is-open > .children {
+  display: block;
+}
+.widget_product_categories ul.product-categories li.cat-item:not(.has-children) {
+  padding-left: 1.4em; /* align leaf labels with parents */
+}
+
+/* Block: "Product Categories" (woocommerce/product-categories). */
+.wc-block-product-categories .wc-block-product-categories-list-item > ul.wc-block-product-categories-list {
+  display: none;
+}
+.wc-block-product-categories li.is-open > ul.wc-block-product-categories-list {
+  display: block;
+}
+.wc-block-product-categories .wc-block-product-categories-list-item:not(.has-children) {
+  padding-left: 1.4em; /* align leaf labels with parents */
+}/*# sourceMappingURL=style.css.map */
