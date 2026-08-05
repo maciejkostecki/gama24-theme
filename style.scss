@@ -24,6 +24,54 @@ $primary-red: #e3000f;
 }
 
 /* ==========================================================================
+   Primary navigation row: white on red — desktop/tablet only.
+   Targets only the second #masthead row (.storefront-primary-navigation); the
+   branding row above keeps Storefront's default styling. The whole block is
+   gated behind min-width: 768px so mobile (the collapsed hamburger menu) keeps
+   Storefront's original colors — the red bar is a wide-screen treatment only.
+   Dropdown sub-menus get their own solid red fill so they stay readable.
+   ========================================================================== */
+
+@media (min-width: 768px) {
+
+	.storefront-primary-navigation {
+		background-color: $primary-red;
+		color: #fff;
+	}
+
+	/* Storefront colors nav links via `.main-navigation ul li a` (0,1,2), which
+	   outranks a plain `.storefront-primary-navigation a`. Match that depth so
+	   the white actually wins. */
+	.storefront-primary-navigation .main-navigation ul li a,
+	.storefront-primary-navigation .main-navigation ul li a:visited,
+	.storefront-primary-navigation a {
+		color: #fff;
+	}
+
+	/* Cart button in the row (the .cart-contents link and its amount/count).
+	   Deliberately NOT the mini-cart drop-down (.widget_shopping_cart), which
+	   keeps its own light background — white text there would be invisible. */
+	.storefront-primary-navigation .site-header-cart .cart-contents,
+	.storefront-primary-navigation .site-header-cart .cart-contents .amount,
+	.storefront-primary-navigation .site-header-cart .cart-contents .count {
+		color: #fff;
+	}
+
+	/* Dropdown sub-menus match the bar. */
+	.storefront-primary-navigation .main-navigation ul.menu ul,
+	.storefront-primary-navigation .main-navigation ul.nav-menu ul {
+		background-color: $primary-red;
+	}
+
+	.storefront-primary-navigation .main-navigation ul li a:hover,
+	.storefront-primary-navigation .main-navigation ul li:hover > a,
+	.storefront-primary-navigation .main-navigation ul li.focus > a {
+		color: #fff;
+		background-color: rgba(0, 0, 0, 0.08);
+	}
+}
+
+/* ==========================================================================
    Product images: fit inside their container, never crop.
    object-fit: contain scales the whole image to fit the available box while
    preserving its aspect ratio, so nothing is clipped regardless of the
@@ -82,6 +130,50 @@ $primary-red: #e3000f;
 	width: 100%;
 	float: none;
 	margin-right: 0;
+}
+
+/* ==========================================================================
+   WooCommerce block lists: undo Storefront's global list indent.
+   Storefront applies `ul, ol { margin: 0 0 1.41575em 3em }` to every list on
+   the site. WooCommerce core resets that for the classic `.woocommerce
+   ul.products` loop, but the block stylesheet only zeroes margin-top/bottom
+   on .wc-block-product-template — so the 3em left indent survives and shoves
+   the whole grid right. Not a mobile-only bug: the same ~48px applies at
+   every width, it just eats 13% of a phone screen instead of reading as
+   stray padding on desktop. Deliberately not behind a media query, so the
+   grid lines up with its surrounding content at all widths.
+   margin-inline keeps this correct in RTL, where Storefront's flipped sheet
+   indents from the right instead.
+   ========================================================================== */
+
+ul.wc-block-product-template,
+ul.wc-block-grid__products {
+	margin-inline: 0;
+}
+
+/* ==========================================================================
+   Product Collection: one product per row on phones.
+   The blocks are saved with `shrinkColumns: true`, so WooCommerce renders the
+   auto-fill variant: `repeat(auto-fill, minmax(max(150px, …), 1fr))`. That
+   150px floor derives the column count from container width alone, with no
+   breakpoint — so once the 3em indent above was removed the container grew
+   past 150px + 1.25em gap + 150px and a second column appeared. This forces
+   a single column below WooCommerce's own 600px breakpoint for the block.
+
+   Unlike the margin reset above, this one belongs in a media query: column
+   count is a genuine per-viewport design decision, not an unwanted style
+   being undone.
+
+   Descendant selector is load-bearing — the block's own rule is
+   `.wc-block-product-template__responsive.columns-N` (0,2,0), so a plain
+   `ul.wc-block-product-template__responsive` (0,1,1) would lose to it.
+   ========================================================================== */
+
+@media (max-width: 599.98px) {
+
+	.wp-block-woocommerce-product-collection ul.wc-block-product-template__responsive {
+		grid-template-columns: 1fr;
+	}
 }
 
 /* ==========================================================================
@@ -147,4 +239,33 @@ li.is-open > .cat-toggle::before {
 	.wc-block-product-categories-list-item:not(.has-children) {
 		padding-left: 1.4em; /* align leaf labels with parents */
 	}
+}
+
+section.storefront-child-footer-top {
+		background-color: $primary-red;
+		.phone-order-link {
+			display: flex;
+			flex-direction: column;
+			justify-content: center;
+			align-items: center;
+			padding: 1rem 0;
+			text-decoration: none;
+		}
+		h3 {
+			color: #fff;
+			text-align: center;
+			font-size: 1.5rem;
+			padding: 0 1rem;
+			margin-bottom: 0;
+		}
+		span {
+			color: #fff;
+			text-decoration: none;
+			display: flex;
+			justify-content: center;
+			align-items: center;
+			font-size: 1.5rem;
+			font-weight: bold;
+			padding: 0 1rem;
+		}
 }

@@ -87,35 +87,75 @@ function storefront_child_scripts() {
 }
 
 /**
- * Remove the sidebar on single product pages for a full-width layout.
+ * Which templates should render full-width, without Storefront's sidebar.
+ *
+ * Central list so the sidebar removal and the body class below always agree.
+ * Add more conditional tags here (e.g. is_cart()) to extend the behavior.
+ * Guarded with function_exists() because these are WooCommerce conditionals.
+ *
+ * @return bool True on pages that should drop the sidebar.
+ */
+function storefront_child_is_no_sidebar_page() {
+	if ( ! function_exists( 'is_product' ) ) {
+		return false; // WooCommerce inactive: nothing to do.
+	}
+
+	return is_product() || is_checkout() || is_cart();
+}
+
+/**
+ * Remove the sidebar on full-width templates.
  *
  * Storefront attaches its sidebar to the `storefront_sidebar` action (see
  * inc/storefront-template-hooks.php: add_action( 'storefront_sidebar',
- * 'storefront_get_sidebar', 10 )). Detaching that callback on product pages
- * drops the sidebar entirely. The companion body class below then lets the
- * child theme CSS stretch the content column to full width — Storefront's
- * content area is otherwise a fixed ~74% and would leave the freed space empty.
+ * 'storefront_get_sidebar', 10 )). Detaching that callback drops the sidebar
+ * entirely. The companion body class below then lets the child theme CSS
+ * stretch the content column to full width — Storefront's content area is
+ * otherwise a fixed ~74% and would leave the freed space empty.
  *
- * We hook `wp` (not an earlier hook) because conditional tags like is_product()
+ * We hook `wp` (not an earlier hook) because conditional tags like is_checkout()
  * are only reliable once the main query has run.
  */
-add_action( 'wp', 'storefront_child_remove_product_sidebar' );
-function storefront_child_remove_product_sidebar() {
-	if ( function_exists( 'is_product' ) && is_product() ) {
+add_action( 'wp', 'storefront_child_remove_sidebar' );
+function storefront_child_remove_sidebar() {
+	if ( storefront_child_is_no_sidebar_page() ) {
 		remove_action( 'storefront_sidebar', 'storefront_get_sidebar', 10 );
 	}
 }
 
 /**
- * Tag product pages so the CSS can widen the content column once the sidebar
+ * Tag those templates so the CSS can widen the content column once the sidebar
  * has been removed above.
  */
-add_filter( 'body_class', 'storefront_child_product_body_class' );
-function storefront_child_product_body_class( $classes ) {
-	if ( function_exists( 'is_product' ) && is_product() ) {
+add_filter( 'body_class', 'storefront_child_no_sidebar_body_class' );
+function storefront_child_no_sidebar_body_class( $classes ) {
+	if ( storefront_child_is_no_sidebar_page() ) {
 		$classes[] = 'storefront-child-no-sidebar';
 	}
 	return $classes;
+}
+
+/**
+ * Render the "footer top" template part as the first thing in the footer.
+ *
+ * Hooked to `storefront_footer` rather than dropped into a page template, so
+ * it renders on every URL — front page, shop, category archives, single
+ * products, cart, checkout, search and 404 alike — without touching any
+ * template file or duplicating markup.
+ *
+ * Priority 5 puts it ahead of everything Storefront hooks to the same action
+ * (see inc/storefront-template-hooks.php): storefront_footer_widgets at 10,
+ * storefront_credit at 20, and storefront_handheld_footer_bar at 999. It
+ * therefore lands inside <footer id="colophon"> and its .col-full wrapper,
+ * above the footer widget columns.
+ *
+ * To render it ABOVE the footer element instead — outside .col-full, so it can
+ * span the full viewport width with its own background — swap the hook for
+ * `storefront_before_footer` and drop the priority argument.
+ */
+add_action( 'storefront_footer', 'storefront_child_footer_top', 5 );
+function storefront_child_footer_top() {
+	get_template_part( 'template-parts/footer-top' );
 }
 
 /**
