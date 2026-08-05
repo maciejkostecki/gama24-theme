@@ -310,3 +310,11 @@ section.storefront-child-footer-top {
 			padding: 0 1rem;
 		}
 }
+
+h2.wp-block-heading.highlight {
+	background-color: $primary-red;
+	color: #fff;
+	font-size: 1.6rem;
+	font-weight: bold;
+	padding: 0.25rem 0.5rem;
+}

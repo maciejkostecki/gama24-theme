@@ -158,6 +158,68 @@ function storefront_child_footer_top() {
 	get_template_part( 'template-parts/footer-top' );
 }
 
+
+
+
+
+/**
+ * Remove "Raty Przelewy24" from the checkout payment list.
+ *
+ * The installments gateway (`p24-online-payments-303`) is a virtual gateway the
+ * Przelewy24 plugin injects whenever the `p24_installments_show_as_payment_method`
+ * option is 'yes' — see Installments::add_as_gateway() for the classic checkout
+ * and Installments::add_as_gateway_in_block() for the block checkout.
+ *
+ * There is no admin toggle for it: the plugin declares that field (and the module
+ * enable flag) as disabled + force_default + hide in
+ * includes/Installments/Settings.php, and Module_Settings::set_defaults() re-forces
+ * it to 'yes' on plugin activation, on every version update, and every time the
+ * wc-settings section=installments screen is saved. Overwriting the option in the
+ * database therefore does not stick, and patching the plugin would both be undone
+ * by updates and break its own checksum integrity check
+ * (includes/Integrity/checksums.php).
+ *
+ * So we short-circuit the read instead. A `pre_option_` filter makes every
+ * get_option() call for that key return 'no', which is what both gateway
+ * registration paths gate on.
+ *
+ * Deliberately scoped to the payment method only: `p24_installments_enabled`
+ * is left alone, so the installments widget / simulator on product pages keeps
+ * working.
+ */
+add_filter( 'pre_option_p24_installments_show_as_payment_method', 'storefront_child_disable_p24_installments' );
+function storefront_child_disable_p24_installments() {
+	return 'no';
+}
+
+/**
+ * Belt and braces: drop the gateway by ID as well, in case it ever gets
+ * registered by another path (e.g. restored from the cached payment methods
+ * list). Priority 100 runs after the plugin's own filters, which sit at
+ * default priority and at 1 respectively.
+ */
+add_filter( 'woocommerce_payment_gateways', 'storefront_child_unregister_p24_installments', 100 );
+function storefront_child_unregister_p24_installments( $gateways ) {
+	if ( ! is_array( $gateways ) ) {
+		return $gateways;
+	}
+
+	return array_values( array_filter( $gateways, function( $gateway ) {
+		return ! ( is_object( $gateway ) && isset( $gateway->id ) && 'p24-online-payments-303' === $gateway->id );
+	} ) );
+}
+
+add_filter( 'woocommerce_available_payment_gateways', 'storefront_child_remove_p24_installments', 100 );
+function storefront_child_remove_p24_installments( $gateways ) {
+	if ( is_array( $gateways ) ) {
+		unset( $gateways['p24-online-payments-303'] );
+	}
+	return $gateways;
+}
+
+
+
+
 /**
  * Add your custom functions below this line.
  */

@@ -17,8 +17,8 @@ defined( 'ABSPATH' ) || exit;
 
 ?>
 <section class="storefront-child-footer-top">
-	<a class="phone-order-link" href="tel:+48178521265">
+	<a class="phone-order-link" href="tel:+48173070844">
 		<h3>Zamówienia telefoniczne:</h3>
-		<span>+48 17 852 12 65</span>
+		<span>+48 17 30 70 844</span>
 	</a>
 </section><!-- .storefront-child-footer-top -->
