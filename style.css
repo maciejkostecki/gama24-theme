@@ -133,6 +133,41 @@ Text Domain:  storefront-child
 }
 
 /* ==========================================================================
+   Mobile column order: sidebar above content.
+   Storefront floats #primary / #secondary only inside @media (min-width: 768px);
+   below that they are plain blocks that stack in DOM order — content first,
+   sidebar second. Making #content's .col-full a flex column lets us flip them
+   visually without touching a single PHP template: all nine templates emit
+   #primary first and then call do_action( 'storefront_sidebar' ) after it, so
+   a DOM-level fix would mean overriding every one of them.
+
+   We push #primary to order:1 rather than pulling #secondary to order:-1 on
+   purpose. Everything else in this wrapper — WooCommerce notices from
+   storefront_shop_messages, plus whatever a plugin hooks to
+   storefront_content_top — keeps the default order:0 and stays at the top
+   where it belongs. Pulling the sidebar up instead would leapfrog the notices.
+
+   Scoped to #content so the .col-full wrappers in the masthead and footer keep
+   their normal block layout.
+
+   Note: this reorders visually only. DOM order is unchanged, so screen reader
+   and keyboard tab order still run content -> sidebar.
+   ========================================================================== */
+@media (max-width: 767.98px) {
+  #content.site-content > .col-full {
+    display: flex;
+    flex-direction: column;
+    /* Storefront's clearfix pseudo-elements would otherwise become stray
+       empty flex items, and there are no floats to clear in a flex column. */
+  }
+  #content.site-content > .col-full::before, #content.site-content > .col-full::after {
+    display: none;
+  }
+  #content.site-content > .col-full > #primary {
+    order: 1;
+  }
+}
+/* ==========================================================================
    WooCommerce block lists: undo Storefront's global list indent.
    Storefront applies `ul, ol { margin: 0 0 1.41575em 3em }` to every list on
    the site. WooCommerce core resets that for the classic `.woocommerce
