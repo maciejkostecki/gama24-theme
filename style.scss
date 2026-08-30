@@ -282,35 +282,6 @@ li.is-open > .cat-toggle::before {
 	}
 }
 
-section.storefront-child-footer-top {
-		background-color: $primary-red;
-		.phone-order-link {
-			display: flex;
-			flex-direction: column;
-			justify-content: center;
-			align-items: center;
-			padding: 1rem 0;
-			text-decoration: none;
-		}
-		h3 {
-			color: #fff;
-			text-align: center;
-			font-size: 1.5rem;
-			padding: 0 1rem;
-			margin-bottom: 0;
-		}
-		span {
-			color: #fff;
-			text-decoration: none;
-			display: flex;
-			justify-content: center;
-			align-items: center;
-			font-size: 1.5rem;
-			font-weight: bold;
-			padding: 0 1rem;
-		}
-}
-
 h2.wp-block-heading.highlight {
 	background-color: $primary-red;
 	color: #fff;

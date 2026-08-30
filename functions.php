@@ -172,28 +172,6 @@ function storefront_child_no_sidebar_body_class( $classes ) {
 	return $classes;
 }
 
-/**
- * Render the "footer top" template part as the first thing in the footer.
- *
- * Hooked to `storefront_footer` rather than dropped into a page template, so
- * it renders on every URL — front page, shop, category archives, single
- * products, cart, checkout, search and 404 alike — without touching any
- * template file or duplicating markup.
- *
- * Priority 5 puts it ahead of everything Storefront hooks to the same action
- * (see inc/storefront-template-hooks.php): storefront_footer_widgets at 10,
- * storefront_credit at 20, and storefront_handheld_footer_bar at 999. It
- * therefore lands inside <footer id="colophon"> and its .col-full wrapper,
- * above the footer widget columns.
- *
- * To render it ABOVE the footer element instead — outside .col-full, so it can
- * span the full viewport width with its own background — swap the hook for
- * `storefront_before_footer` and drop the priority argument.
- */
-add_action( 'storefront_footer', 'storefront_child_footer_top', 5 );
-function storefront_child_footer_top() {
-	get_template_part( 'template-parts/footer-top' );
-}
 
 
 

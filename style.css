@@ -260,35 +260,6 @@ li.is-open > .cat-toggle::before {
   padding-left: 1.4em; /* align leaf labels with parents */
 }
 
-section.storefront-child-footer-top {
-  background-color: #e3000f;
-}
-section.storefront-child-footer-top .phone-order-link {
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  align-items: center;
-  padding: 1rem 0;
-  text-decoration: none;
-}
-section.storefront-child-footer-top h3 {
-  color: #fff;
-  text-align: center;
-  font-size: 1.5rem;
-  padding: 0 1rem;
-  margin-bottom: 0;
-}
-section.storefront-child-footer-top span {
-  color: #fff;
-  text-decoration: none;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  font-size: 1.5rem;
-  font-weight: bold;
-  padding: 0 1rem;
-}
-
 h2.wp-block-heading.highlight {
   background-color: #e3000f;
   color: #fff;
@@ -422,5 +393,4 @@ h2.wp-block-heading.highlight {
 
 .phone-order-dialog__intro {
   margin-bottom: 1.5rem;
-}
-/*# sourceMappingURL=style.css.map */
+}/*# sourceMappingURL=style.css.map */
