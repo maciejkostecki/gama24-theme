@@ -295,4 +295,132 @@ h2.wp-block-heading.highlight {
   font-size: 1.6rem;
   font-weight: bold;
   padding: 0.25rem 0.5rem;
-}/*# sourceMappingURL=style.css.map */
+}
+
+/* ==========================================================================
+   Phone orders on single product pages.
+   Two buttons occupy the same slot — a tel: link during business hours and a
+   dialog trigger outside them — and the data-phone-order-state attribute on
+   the wrapper decides which one is visible. Hiding rather than removing the
+   inactive one is what lets assets/js/phone-order.js correct the state on a
+   cached page without re-rendering anything.
+   ========================================================================== */
+/* Same row as add-to-cart. Scoped with :has() to the forms that actually
+   contain the button — simple and external products — so the grouped-product
+   table and the variable-product variations form keep their block layout. */
+.single-product form.cart:has(> .phone-order) {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5em;
+}
+.single-product form.cart:has(> .phone-order) .quantity,
+.single-product form.cart:has(> .phone-order) .button {
+  margin-bottom: 0;
+  float: none; /* Storefront floats the quantity box. */
+}
+.single-product form.cart:has(> .phone-order) {
+  /* Storefront gives the quantity box ~180px, which is far more than a
+     one-to-three digit number needs and is the difference between the three
+     controls fitting on one line and the phone button dropping to its own.
+     Narrowed only inside forms that actually carry the button. */
+}
+.single-product form.cart:has(> .phone-order) .quantity .qty {
+  width: 4.5em;
+}
+.single-product form.cart:has(> .phone-order) {
+  /* Shrink before wrapping, so a narrow summary column tightens the buttons
+     up rather than immediately breaking the row. */
+}
+.single-product form.cart:has(> .phone-order) .single_add_to_cart_button,
+.single-product form.cart:has(> .phone-order) .phone-order {
+  flex: 0 1 auto;
+}
+
+.phone-order {
+  display: inline-flex;
+}
+.phone-order[data-phone-order-state=open] .phone-order__button--form, .phone-order[data-phone-order-state=closed] .phone-order__button--call {
+  display: none;
+}
+
+/* Fallback placement: variable, grouped and out-of-stock products, where the
+   button gets its own row under the add-to-cart area. */
+.phone-order--standalone {
+  display: flex;
+  margin-bottom: 1em;
+}
+
+/* Ghost button: the phone order is the secondary path, so it reads as an
+   outline against the solid add-to-cart button next to it. Filling on hover
+   keeps the affordance obvious. box-shadow rather than border draws the
+   outline inside the box, so the button stays exactly the same height as
+   add-to-cart and the flex row does not shift. */
+.phone-order__button {
+  background-color: #fff;
+  box-shadow: inset 0 0 0 2px #e3000f;
+  color: #e3000f;
+  text-decoration: none;
+  white-space: nowrap;
+  /* :focus-visible rather than :focus — a mouse click leaves focus on the
+     button, and with plain :focus the ghost would stay filled afterwards as
+     though it were still pressed. Keyboard users still get the fill. */
+}
+.phone-order__button:hover, .phone-order__button:focus-visible {
+  background-color: #e3000f;
+  color: #fff;
+}
+
+@media (max-width: 568px) {
+  .phone-order,
+  .phone-order__button {
+    width: 100%;
+    text-align: center;
+  }
+}
+/* --------------------------------------------------------------------------
+   Callback-request dialog. Native <dialog>, so the browser handles the
+   backdrop, focus trapping and Escape; only the panel needs styling.
+   -------------------------------------------------------------------------- */
+.phone-order-dialog {
+  width: min(32rem, 100vw - 2rem);
+  padding: 0;
+  border: 0;
+  border-radius: 3px;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.25);
+}
+.phone-order-dialog::backdrop {
+  background-color: rgba(0, 0, 0, 0.55);
+}
+
+.phone-order-dialog__inner {
+  position: relative;
+  padding: 2rem;
+}
+
+.phone-order-dialog__close {
+  position: absolute;
+  top: 0.25rem;
+  right: 0.25rem;
+  padding: 0.25rem 0.6rem;
+  background: none;
+  border: 0;
+  color: inherit;
+  font-size: 1.75rem;
+  line-height: 1;
+  cursor: pointer;
+}
+.phone-order-dialog__close:hover, .phone-order-dialog__close:focus {
+  background: none;
+  color: #e3000f;
+}
+
+.phone-order-dialog__title {
+  margin-bottom: 0.5rem;
+  font-size: 1.5rem;
+}
+
+.phone-order-dialog__intro {
+  margin-bottom: 1.5rem;
+}
+/*# sourceMappingURL=style.css.map */

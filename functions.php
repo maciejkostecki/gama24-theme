@@ -84,6 +84,43 @@ function storefront_child_scripts() {
 		wp_get_theme()->get( 'Version' ),
 		true
 	);
+
+	// Phone-order button: single product pages only.
+	if ( function_exists( 'is_product' ) && is_product() ) {
+		wp_enqueue_script(
+			'storefront-child-phone-order',
+			get_stylesheet_directory_uri() . '/assets/js/phone-order.js',
+			array(),
+			wp_get_theme()->get( 'Version' ),
+			true
+		);
+
+		wp_add_inline_script(
+			'storefront-child-phone-order',
+			'window.storefrontChildPhoneOrder = ' . wp_json_encode( storefront_child_phone_order_js_data() ) . ';',
+			'before'
+		);
+	}
+}
+
+/**
+ * Data handed to assets/js/phone-order.js so it can repeat the open/closed
+ * decision client-side. Same hours PHP used, so the two agree.
+ *
+ * The timezone is the site's own setting, but only when it is a real IANA
+ * name: WordPress also allows a bare UTC offset ("+02:00"), which older
+ * Intl.DateTimeFormat implementations reject as a timeZone. In that case fall
+ * back to Europe/Warsaw, which is what the shop actually runs on.
+ *
+ * @return array
+ */
+function storefront_child_phone_order_js_data() {
+	$tz = wp_timezone()->getName();
+
+	return array(
+		'timezone' => false !== strpos( $tz, '/' ) ? $tz : 'Europe/Warsaw',
+		'hours'    => storefront_child_phone_order_hours(),
+	);
 }
 
 /**
@@ -223,3 +260,185 @@ function storefront_child_remove_p24_installments( $gateways ) {
 /**
  * Add your custom functions below this line.
  */
+
+/* ==========================================================================
+   Phone orders on single product pages.
+
+   Renders a "Zamów przez telefon" button beside the add-to-cart button. During
+   business hours it is a tel: link; outside them it opens a Contact Form 7
+   dialog that collects a callback number.
+
+   Both states are always rendered. PHP picks the correct one up front (using
+   the site's own timezone, so there is no flash of the wrong button and remote
+   visitors are not judged by their own clock), and assets/js/phone-order.js
+   re-evaluates on load against the shop's timezone. That second check exists
+   so a full-page cache or CDN in front of the site cannot freeze the button in
+   whichever state happened to be cached, and so a tab left open across 18:00
+   corrects itself.
+   ========================================================================== */
+
+define( 'STOREFRONT_CHILD_PHONE_NUMBER', '+48173070844' );
+define( 'STOREFRONT_CHILD_PHONE_FORM', '[contact-form-7 id="4713ba3" title="Zamowienie-telefoniczne"]' );
+
+/**
+ * Business hours, keyed by ISO-8601 day number (1 = Monday ... 7 = Sunday).
+ *
+ * Each value is array( open, close ) in 24h HH:MM, or null for a closed day.
+ * Single source of truth: PHP reads this directly and the same array is handed
+ * to the front-end script, so the two can never drift apart.
+ *
+ * @return array
+ */
+function storefront_child_phone_order_hours() {
+	return apply_filters( 'storefront_child_phone_order_hours', array(
+		1 => array( '10:00', '18:00' ),
+		2 => array( '10:00', '18:00' ),
+		3 => array( '10:00', '18:00' ),
+		4 => array( '10:00', '18:00' ),
+		5 => array( '10:00', '18:00' ),
+		6 => array( '10:00', '13:00' ),
+		7 => null,
+	) );
+}
+
+/**
+ * Are phone orders being taken right now?
+ *
+ * @return bool
+ */
+function storefront_child_phone_order_is_open() {
+	$now   = new DateTimeImmutable( 'now', wp_timezone() );
+	$hours = storefront_child_phone_order_hours();
+	$today = (int) $now->format( 'N' );
+
+	if ( empty( $hours[ $today ] ) ) {
+		return false;
+	}
+
+	list( $open, $close ) = $hours[ $today ];
+	$minutes              = (int) $now->format( 'G' ) * 60 + (int) $now->format( 'i' );
+
+	return $minutes >= storefront_child_hhmm_to_minutes( $open )
+		&& $minutes < storefront_child_hhmm_to_minutes( $close );
+}
+
+/**
+ * "10:00" -> 600. Minutes since midnight.
+ *
+ * @param string $hhmm 24h time.
+ * @return int
+ */
+function storefront_child_hhmm_to_minutes( $hhmm ) {
+	$parts = explode( ':', $hhmm );
+	return (int) $parts[0] * 60 + (int) ( isset( $parts[1] ) ? $parts[1] : 0 );
+}
+
+/**
+ * Tracks whether the button has already been output for this request, so the
+ * inline hook and the fallback hook below never both fire.
+ *
+ * @param bool|null $set Pass true to mark as rendered; null to read.
+ * @return bool
+ */
+function storefront_child_phone_order_rendered( $set = null ) {
+	static $rendered = false;
+	if ( true === $set ) {
+		$rendered = true;
+	}
+	return $rendered;
+}
+
+/**
+ * Preferred position: inside <form class="cart">, immediately after the
+ * add-to-cart button, which puts the two in the same flex row.
+ *
+ * Restricted to simple and external products on purpose:
+ *
+ * - variable: this hook lives in variation-add-to-cart-button.php, inside
+ *   .woocommerce-variation-add-to-cart, which WooCommerce keeps hidden until a
+ *   variation is selected — the phone button would vanish with it.
+ * - grouped: the form wraps a product table, and turning it into a flex row
+ *   would drag the table and the button side by side.
+ *
+ * Both fall through to the standalone position below instead.
+ */
+add_action( 'woocommerce_after_add_to_cart_button', 'storefront_child_phone_order_inline' );
+function storefront_child_phone_order_inline() {
+	global $product;
+
+	if ( ! is_a( $product, 'WC_Product' ) || ! $product->is_type( array( 'simple', 'external' ) ) ) {
+		return;
+	}
+
+	storefront_child_phone_order_rendered( true );
+	get_template_part( 'template-parts/phone-order-button' );
+}
+
+/**
+ * Fallback position: its own row directly under the add-to-cart area.
+ *
+ * Priority 31 sits between woocommerce_template_single_add_to_cart (30) and
+ * woocommerce_template_single_meta (40). This is what renders the button for
+ * variable and grouped products, and — the case that matters most — for
+ * out-of-stock products, where there is no add-to-cart form at all and calling
+ * is the only way left to order.
+ */
+add_action( 'woocommerce_single_product_summary', 'storefront_child_phone_order_standalone', 31 );
+function storefront_child_phone_order_standalone() {
+	if ( storefront_child_phone_order_rendered() ) {
+		return;
+	}
+
+	storefront_child_phone_order_rendered( true );
+	get_template_part( 'template-parts/phone-order-button', null, array( 'standalone' => true ) );
+}
+
+/**
+ * The dialog itself, rendered after the product summary.
+ *
+ * Two constraints pick this hook:
+ *
+ * 1. It must sit outside <form class="cart">. Contact Form 7 outputs a <form>
+ *    of its own, and nested forms are invalid HTML — the browser drops the
+ *    inner one, which would break submission entirely.
+ * 2. It must sit inside the loop. Contact Form 7 records which post a form was
+ *    embedded in via its _wpcf7_container_post hidden field, and
+ *    WPCF7_ContactForm::form_hidden_fields() only fills that in when
+ *    in_the_loop() is true. Rendered on wp_footer — after the loop has ended —
+ *    it would be 0, and the [_post_title] / [_post_url] special mail tags
+ *    would silently resolve to nothing.
+ *
+ * woocommerce_after_single_product_summary satisfies both: it fires inside
+ * content-single-product.php's loop, after the .summary div has closed.
+ * Priority 5 keeps it ahead of the upsell (15) and related products (20)
+ * blocks.
+ */
+add_action( 'woocommerce_after_single_product_summary', 'storefront_child_phone_order_dialog', 5 );
+function storefront_child_phone_order_dialog() {
+	if ( ! storefront_child_phone_order_rendered() ) {
+		return;
+	}
+
+	get_template_part( 'template-parts/phone-order-dialog' );
+}
+
+/**
+ * Give the form's submit button Storefront's primary-button styling.
+ *
+ * Sending the callback request is the primary action inside the dialog, so it
+ * should look exactly like "Dodaj do koszyka". Those colours are Customizer
+ * settings (storefront_button_alt_background_color and friends) rather than
+ * fixed values in the stylesheet, so copying hex codes into our SCSS would
+ * drift the moment anyone changes the theme colours. Borrowing the classes
+ * keeps the two in step permanently.
+ *
+ * Applied only around our own do_shortcode() call — see
+ * template-parts/phone-order-dialog.php — so other Contact Form 7 forms on the
+ * site keep their default appearance.
+ *
+ * @param string $html Rendered form markup.
+ * @return string
+ */
+function storefront_child_phone_order_submit_classes( $html ) {
+	return str_replace( 'wpcf7-submit', 'wpcf7-submit button alt', $html );
+}
