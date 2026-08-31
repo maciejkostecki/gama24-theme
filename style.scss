@@ -282,6 +282,75 @@ li.is-open > .cat-toggle::before {
 	}
 }
 
+/* ==========================================================================
+   Sidebar category menu: larger type, touch-friendly rows.
+
+   Scoped to .widget-area rather than applied to the block globally, so the
+   same woocommerce/product-categories block dropped into page content keeps
+   its default scale. The sidebar is the only place the shop uses it today.
+
+   The column is 231px wide and several category names are long, so this is
+   deliberately 16px rather than 18px: at 18px eight of the eighteen top-level
+   labels wrap onto a second line and the list grows past 1200px, which reads
+   as untidy rather than generous.
+   ========================================================================== */
+
+$sidebar-menu-font: 16px;
+$sidebar-menu-rule: #ececec;
+
+.widget-area .wc-block-product-categories {
+
+	.wc-block-product-categories-list {
+		font-size: $sidebar-menu-font;
+	}
+
+	/* Vertical padding as longhand, not the `padding` shorthand: the accordion
+	   rules above indent childless items with padding-left, and a shorthand
+	   here would silently reset it and break their alignment. */
+	.wc-block-product-categories-list--depth-0 > .wc-block-product-categories-list-item {
+		padding-top: 0.5rem;
+		padding-bottom: 0.5rem;
+		border-bottom: 1px solid $sidebar-menu-rule;
+
+		&:last-child {
+			border-bottom: 0; /* No trailing rule under the final item. */
+		}
+	}
+
+	/* Every nested level, not just the first: matching on "not depth-0" keeps
+	   this working if a third tier is ever added. Sub-items get tighter rows
+	   and no rules, so an expanded branch reads as one block under its parent
+	   rather than as more top-level entries. */
+	.wc-block-product-categories-list:not(.wc-block-product-categories-list--depth-0) > .wc-block-product-categories-list-item {
+		padding-top: 0.25rem;
+		padding-bottom: 0.25rem;
+	}
+
+	/* Storefront underlines every widget link (`.widget-area .widget a` in the
+	   parent stylesheet, specificity 0-2-1 — hence the depth of the selector
+	   below). Across eighteen stacked categories that underline reads as noise;
+	   the list structure and the hover state already make it obvious these are
+	   links. Kept on hover and keyboard focus, where it marks the one item
+	   being targeted. */
+	.wc-block-product-categories-list-item > a {
+		text-decoration: none;
+
+		&:hover,
+		&:focus-visible {
+			text-decoration: underline;
+		}
+	}
+
+	/* WooCommerce prints the product count immediately after the label with no
+	   separation at all, so it renders as "Gitary i Basy2314". Give it room and
+	   step it back, so the category name is what the eye reads first. */
+	.wc-block-product-categories-list-item-count {
+		margin-left: 0.4em;
+		color: #8a8a8a;
+		font-size: 0.8em;
+	}
+}
+
 h2.wp-block-heading.highlight {
 	background-color: $primary-red;
 	color: #fff;
@@ -466,6 +535,15 @@ $slider-radius: 15px;
 	scroll-snap-type: x mandatory;
 	scroll-behavior: smooth;
 	-webkit-overflow-scrolling: touch;
+	border-radius: $slider-radius;
+
+	/* The radius lives on the track, not on the individual banners. No
+	   `overflow: hidden` is needed to make it clip: the overflow-x/y pair above
+	   already makes this a scroll container, and a scroll container clips to
+	   its own rounded padding box. The result is one fixed rounded frame with
+	   the artwork moving behind it. Rounding each image instead sends a pair of
+	   curved corners travelling across the viewport on every slide change,
+	   which is what this replaced. */
 	scrollbar-width: none; /* Firefox. */
 	-ms-overflow-style: none; /* Legacy Edge. */
 
@@ -484,11 +562,13 @@ $slider-radius: 15px;
 
 .homepage-slider__link {
 	display: block;
+
+	/* Purely to shape the focus ring below — an outline follows its own
+	   element's border-radius, and a square ring inset into the track's rounded
+	   frame gets its corners clipped off. Nothing is rounded visually here: the
+	   link's overflow is visible, so the banner inside it is untouched. */
 	border-radius: $slider-radius;
 
-	/* The radius is repeated on the link rather than left to the image alone:
-	   an outline follows its own element's border-radius, so without this the
-	   keyboard focus ring would be a rectangle drawn over rounded corners. */
 	&:focus-visible {
 		outline: 2px solid $primary-red;
 		outline-offset: -4px;
@@ -501,12 +581,13 @@ $slider-radius: 15px;
 	height: auto;
 	aspect-ratio: 3 / 1;
 	object-fit: cover;
-	border-radius: $slider-radius;
 
-	/* Rounded here, on the image, rather than on .homepage-slider__track with
-	   overflow: hidden. The track is the scroll container — clipping it would
-	   round the moving viewport instead of the banners, so the corners would
-	   stay put while the artwork slid past underneath them. */
+	/* Storefront rounds every image by 3px (`img { border-radius: 3px }` in the
+	   parent stylesheet). Left alone, each banner would keep a small curve at
+	   its corners — so mid-transition a pair of them would travel across the
+	   frame and leave a visible notch where two slides meet. The frame's own
+	   15px curve above is the only rounding wanted here. */
+	border-radius: 0;
 
 	/* The registered `storefront_child_slide` size is already a 3:1 hard crop,
 	   so object-fit is a safety net for slides whose image predates that size
