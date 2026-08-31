@@ -265,7 +265,8 @@ h2.wp-block-heading.highlight {
   color: #fff;
   font-size: 1.6rem;
   font-weight: bold;
-  padding: 0.25rem 0.5rem;
+  padding: 0.25rem 0.7rem;
+  border-radius: 4px;
 }
 
 /* ==========================================================================
@@ -448,6 +449,10 @@ h2.wp-block-heading.highlight {
 
 .homepage-slider__link {
   display: block;
+  border-radius: 15px;
+  /* The radius is repeated on the link rather than left to the image alone:
+     an outline follows its own element's border-radius, so without this the
+     keyboard focus ring would be a rectangle drawn over rounded corners. */
 }
 .homepage-slider__link:focus-visible {
   outline: 2px solid #e3000f;
@@ -461,6 +466,11 @@ h2.wp-block-heading.highlight {
   aspect-ratio: 3/1;
   -o-object-fit: cover;
      object-fit: cover;
+  border-radius: 15px;
+  /* Rounded here, on the image, rather than on .homepage-slider__track with
+     overflow: hidden. The track is the scroll container — clipping it would
+     round the moving viewport instead of the banners, so the corners would
+     stay put while the artwork slid past underneath them. */
   /* The registered `storefront_child_slide` size is already a 3:1 hard crop,
      so object-fit is a safety net for slides whose image predates that size
      (or is too small for WordPress to have generated it) — it keeps the
