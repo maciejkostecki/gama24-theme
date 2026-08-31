@@ -393,4 +393,208 @@ h2.wp-block-heading.highlight {
 
 .phone-order-dialog__intro {
   margin-bottom: 1.5rem;
+}
+
+/* ==========================================================================
+   Homepage slider.
+
+   The banner carousel printed below the primary navigation on the front page.
+   See template-parts/homepage-slider.php and assets/js/homepage-slider.js.
+
+   The track is a horizontal scroll-snap container rather than a translated
+   strip. That is what makes touch swipe, trackpad scrolling and keyboard
+   scrolling work with no JavaScript at all — the script only adds autoplay and
+   the arrow/dot controls on top. Consequences worth knowing when editing this:
+
+   - Each slide must stay exactly 100% of the track width. The script derives
+     every scroll offset from `index * track.clientWidth`, so a partial-width
+     or peeking slide would desynchronise the dots.
+   - The scrollbar is hidden, not disabled. Overflow is still `auto`, which is
+     what keeps the track scrollable; only the visible bar is suppressed.
+   ========================================================================== */
+.homepage-slider-wrapper {
+  margin-bottom: 2.617924em; /* Storefront's vertical rhythm unit. */
+}
+
+.homepage-slider {
+  position: relative; /* Positioning context for the arrows. */
+}
+
+.homepage-slider__track {
+  display: flex;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  overflow-x: auto;
+  overflow-y: hidden;
+  overscroll-behavior-x: contain; /* Don't chain a swipe into browser back. */
+  scroll-snap-type: x mandatory;
+  scroll-behavior: smooth;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none; /* Firefox. */
+  -ms-overflow-style: none; /* Legacy Edge. */
+}
+.homepage-slider__track::-webkit-scrollbar {
+  display: none;
+}
+
+.homepage-slider__slide {
+  flex: 0 0 100%;
+  max-width: 100%;
+  margin: 0;
+  scroll-snap-align: start;
+  scroll-snap-stop: always; /* One slide per swipe, never a skid past two. */
+}
+
+.homepage-slider__link {
+  display: block;
+}
+.homepage-slider__link:focus-visible {
+  outline: 2px solid #e3000f;
+  outline-offset: -4px;
+}
+
+.homepage-slider__image {
+  display: block;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 3/1;
+  -o-object-fit: cover;
+     object-fit: cover;
+  /* The registered `storefront_child_slide` size is already a 3:1 hard crop,
+     so object-fit is a safety net for slides whose image predates that size
+     (or is too small for WordPress to have generated it) — it keeps the
+     banner the right shape instead of letting one slide change the height of
+     the whole page. */
+}
+
+/* --------------------------------------------------------------------------
+   Arrows.
+
+   Storefront styles bare <button> elements globally (dark fill, generous
+   padding), so these rules are overrides rather than a blank slate — hence the
+   explicit padding, border-radius and background-color reset.
+   -------------------------------------------------------------------------- */
+.homepage-slider__arrow {
+  /* The `hidden` attribute the template prints is only a UA-stylesheet
+     `display: none`, and the `display: flex` below is an author rule of equal
+     specificity — author wins, so without this the controls would be visible
+     and clickable before (or entirely without) the script that makes them
+     work. Every element here that is printed hidden needs the same guard. */
+}
+.homepage-slider__arrow[hidden] {
+  display: none;
+}
+.homepage-slider__arrow {
+  position: absolute;
+  top: 50%;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.75rem;
+  height: 2.75rem;
+  padding: 0;
+  transform: translateY(-50%);
+  border: 0;
+  border-radius: 50%;
+  background-color: rgba(255, 255, 255, 0.85);
+  color: #43454b;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2);
+  cursor: pointer;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+.homepage-slider__arrow:hover, .homepage-slider__arrow:focus {
+  background-color: #e3000f;
+  color: #fff;
+}
+.homepage-slider__arrow:focus-visible {
+  outline: 2px solid #fff;
+  outline-offset: -4px;
+}
+.homepage-slider__arrow svg {
+  width: 1.25rem;
+  height: 1.25rem;
+  fill: currentColor;
+}
+
+.homepage-slider__arrow--prev {
+  left: 0.75rem;
+}
+
+.homepage-slider__arrow--next {
+  right: 0.75rem;
+}
+
+/* --------------------------------------------------------------------------
+   Dots.
+
+   The button is a 1.5rem square for a comfortable touch target, while
+   background-clip keeps the painted dot down to the 0.75rem the design calls
+   for. The active state is driven by aria-current, so the attribute the screen
+   reader uses and the one the eye uses can never drift apart.
+   -------------------------------------------------------------------------- */
+.homepage-slider__dots[hidden] {
+  display: none; /* See the note on .homepage-slider__arrow. */
+}
+.homepage-slider__dots {
+  display: flex;
+  justify-content: center;
+  margin: 0.75rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.homepage-slider__dots-item {
+  margin: 0;
+}
+
+.homepage-slider__dot {
+  display: block;
+  width: 1.5rem;
+  height: 1.5rem;
+  padding: 0.375rem;
+  border: 0;
+  border-radius: 50%;
+  background-color: #ccc;
+  background-clip: content-box;
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+.homepage-slider__dot:hover, .homepage-slider__dot:focus {
+  background-color: #999;
+  background-clip: content-box;
+}
+.homepage-slider__dot[aria-current=true] {
+  background-color: #e3000f;
+  background-clip: content-box;
+}
+
+@media (max-width: 568px) {
+  /* On a phone the arrows sit over roughly a third of a much smaller banner.
+     Swipe and the dots are the natural controls at this width, so the arrows
+     shrink and tuck into the corners rather than covering the artwork. */
+  .homepage-slider__arrow {
+    width: 2.25rem;
+    height: 2.25rem;
+  }
+  .homepage-slider__arrow svg {
+    width: 1rem;
+    height: 1rem;
+  }
+  .homepage-slider__arrow--prev {
+    left: 0.375rem;
+  }
+  .homepage-slider__arrow--next {
+    right: 0.375rem;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  /* The other half of the reduced-motion promise: the script already refuses
+     to autoplay, and this stops a tapped arrow or dot from animating a
+     full-width banner across the viewport. The slide still changes — it just
+     cuts rather than glides. */
+  .homepage-slider__track {
+    scroll-behavior: auto;
+  }
 }/*# sourceMappingURL=style.css.map */

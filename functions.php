@@ -85,6 +85,17 @@ function storefront_child_scripts() {
 		true
 	);
 
+	// Homepage slider: front page only, and only when there are slides to show.
+	if ( storefront_child_show_homepage_slider() ) {
+		wp_enqueue_script(
+			'storefront-child-homepage-slider',
+			get_stylesheet_directory_uri() . '/assets/js/homepage-slider.js',
+			array(),
+			wp_get_theme()->get( 'Version' ),
+			true
+		);
+	}
+
 	// Phone-order button: single product pages only.
 	if ( function_exists( 'is_product' ) && is_product() ) {
 		wp_enqueue_script(
@@ -419,4 +430,333 @@ function storefront_child_phone_order_dialog() {
  */
 function storefront_child_phone_order_submit_classes( $html ) {
 	return str_replace( 'wpcf7-submit', 'wpcf7-submit button alt', $html );
+}
+
+
+/* ==========================================================================
+   Homepage slider.
+
+   A banner carousel that sits directly below the primary navigation on the
+   front page only, spanning the full container width — i.e. across both the
+   content column and the sidebar, which the homepage keeps.
+
+   Slides are a small custom post type rather than a hardcoded array or a
+   Customizer section, so the shop owner can add, remove and reorder banners in
+   wp-admin without a code change. Each slide is a featured image plus an
+   optional destination URL; the artwork carries its own text, so there is no
+   overlaid markup to fight the image on narrow screens.
+   ========================================================================== */
+
+/**
+ * Register the "Slajdy" post type.
+ *
+ * `public => false` with `show_ui => true` is deliberate: slides are fragments
+ * of the homepage, not pages of their own. That combination gives them an
+ * admin screen while keeping them out of the front-end router, out of search
+ * results, and out of the nav-menu picker — a visitor can never land on
+ * /sc_slide/whatever.
+ *
+ * `page-attributes` is what supplies the numeric "Kolejność" field. The query
+ * below orders by menu_order, so that field is how the banners are sequenced.
+ *
+ * The post type is left out of the REST API, which means WordPress serves it
+ * with the classic editor. That is the desired screen here: a title, a
+ * featured image and a URL, with no block canvas inviting body content that
+ * the template would silently ignore.
+ */
+add_action( 'init', 'storefront_child_register_slide_post_type' );
+function storefront_child_register_slide_post_type() {
+	register_post_type(
+		'sc_slide',
+		array(
+			'labels'               => array(
+				'name'                  => __( 'Slajdy', 'storefront-child' ),
+				'singular_name'         => __( 'Slajd', 'storefront-child' ),
+				'menu_name'             => __( 'Slajdy', 'storefront-child' ),
+				'add_new'               => __( 'Dodaj nowy', 'storefront-child' ),
+				'add_new_item'          => __( 'Dodaj nowy slajd', 'storefront-child' ),
+				'edit_item'             => __( 'Edytuj slajd', 'storefront-child' ),
+				'new_item'              => __( 'Nowy slajd', 'storefront-child' ),
+				'view_item'             => __( 'Zobacz slajd', 'storefront-child' ),
+				'search_items'          => __( 'Szukaj slajdów', 'storefront-child' ),
+				'all_items'             => __( 'Wszystkie slajdy', 'storefront-child' ),
+				'not_found'             => __( 'Nie znaleziono slajdów.', 'storefront-child' ),
+				'not_found_in_trash'    => __( 'Brak slajdów w koszu.', 'storefront-child' ),
+				'featured_image'        => __( 'Grafika slajdu', 'storefront-child' ),
+				'set_featured_image'    => __( 'Ustaw grafikę slajdu', 'storefront-child' ),
+				'remove_featured_image' => __( 'Usuń grafikę slajdu', 'storefront-child' ),
+				'use_featured_image'    => __( 'Użyj jako grafiki slajdu', 'storefront-child' ),
+			),
+			'public'               => false,
+			'show_ui'              => true,
+			'show_in_menu'         => true,
+			'show_in_nav_menus'    => false,
+			'publicly_queryable'   => false,
+			'exclude_from_search'  => true,
+			'has_archive'          => false,
+			'rewrite'              => false,
+			'query_var'            => false,
+			'hierarchical'         => false,
+			'menu_position'        => 21,
+			'menu_icon'            => 'dashicons-images-alt2',
+			'supports'             => array( 'title', 'thumbnail', 'page-attributes' ),
+			'register_meta_box_cb' => 'storefront_child_slide_meta_boxes',
+		)
+	);
+}
+
+/**
+ * The 3:1 banner crop the slider renders.
+ *
+ * Hard-cropped on purpose, so every slide is exactly the same shape and the
+ * page does not change height as the carousel advances. This does not conflict
+ * with storefront_child_uncropped_thumbnail() above: that filter targets
+ * WooCommerce's `woocommerce_thumbnail` size for product images, which is a
+ * different size entirely.
+ *
+ * Registered at `after_setup_theme` because the parent theme's
+ * add_theme_support( 'post-thumbnails' ) runs there (see
+ * storefront/inc/class-storefront.php); image sizes are only meaningful once
+ * thumbnail support exists.
+ */
+add_action( 'after_setup_theme', 'storefront_child_register_slide_image_size', 20 );
+function storefront_child_register_slide_image_size() {
+	add_image_size( 'storefront_child_slide', 1200, 400, true );
+}
+
+/**
+ * Offer the slide crop in the media library's size dropdown, so the size is
+ * visible (and pickable) rather than existing only in code.
+ */
+add_filter( 'image_size_names_choose', 'storefront_child_slide_image_size_name' );
+function storefront_child_slide_image_size_name( $sizes ) {
+	$sizes['storefront_child_slide'] = __( 'Slajd (1200×400)', 'storefront-child' );
+	return $sizes;
+}
+
+/**
+ * Meta boxes for the slide edit screen.
+ *
+ * Wired through register_post_type()'s `register_meta_box_cb` rather than the
+ * add_meta_boxes hook — same result, but it keeps the box's existence tied to
+ * the post type that owns it.
+ *
+ * @param WP_Post $post Slide being edited.
+ */
+function storefront_child_slide_meta_boxes( $post ) {
+	add_meta_box(
+		'storefront-child-slide-url',
+		__( 'Odnośnik slajdu', 'storefront-child' ),
+		'storefront_child_slide_url_meta_box',
+		'sc_slide',
+		'normal',
+		'high'
+	);
+}
+
+/**
+ * The destination-URL field.
+ *
+ * Optional: a slide with no URL renders as a plain image rather than as an
+ * anchor with an empty href, which would be a focusable control that goes
+ * nowhere.
+ *
+ * @param WP_Post $post Slide being edited.
+ */
+function storefront_child_slide_url_meta_box( $post ) {
+	$url = get_post_meta( $post->ID, '_storefront_child_slide_url', true );
+
+	wp_nonce_field( 'storefront_child_slide_url', 'storefront_child_slide_url_nonce' );
+	?>
+	<p>
+		<label for="storefront-child-slide-url">
+			<?php esc_html_e( 'Adres, do którego prowadzi slajd (opcjonalnie):', 'storefront-child' ); ?>
+		</label>
+	</p>
+	<p>
+		<input type="url" class="large-text code" id="storefront-child-slide-url"
+			name="storefront_child_slide_url"
+			value="<?php echo esc_attr( $url ); ?>"
+			placeholder="<?php echo esc_attr( home_url( '/' ) ); ?>">
+	</p>
+	<p class="description">
+		<?php esc_html_e( 'Zostaw puste, aby slajd nie był klikalny.', 'storefront-child' ); ?>
+	</p>
+	<?php
+}
+
+/**
+ * Persist the destination URL.
+ *
+ * Bails on autosave and on a missing/invalid nonce, and re-checks the
+ * capability against this specific post rather than trusting that only editors
+ * reach the screen.
+ *
+ * @param int     $post_id Slide ID.
+ * @param WP_Post $post    Slide.
+ */
+add_action( 'save_post_sc_slide', 'storefront_child_save_slide_url', 10, 2 );
+function storefront_child_save_slide_url( $post_id, $post ) {
+	if ( defined( 'DOING_AUTOSAVE' ) && DOING_AUTOSAVE ) {
+		return;
+	}
+
+	if ( ! isset( $_POST['storefront_child_slide_url_nonce'] ) ) {
+		return; // Not our form (quick edit, REST, programmatic insert).
+	}
+
+	$nonce = sanitize_key( wp_unslash( $_POST['storefront_child_slide_url_nonce'] ) );
+
+	if ( ! wp_verify_nonce( $nonce, 'storefront_child_slide_url' ) ) {
+		return;
+	}
+
+	if ( ! current_user_can( 'edit_post', $post_id ) ) {
+		return;
+	}
+
+	$url = isset( $_POST['storefront_child_slide_url'] )
+		? esc_url_raw( wp_unslash( $_POST['storefront_child_slide_url'] ) )
+		: '';
+
+	if ( '' === $url ) {
+		delete_post_meta( $post_id, '_storefront_child_slide_url' );
+	} else {
+		update_post_meta( $post_id, '_storefront_child_slide_url', $url );
+	}
+}
+
+/**
+ * Show the banner itself in the Slajdy list table.
+ *
+ * The title alone is a poor index of a list of images, and the point of the
+ * screen is picking which artwork goes where.
+ */
+add_filter( 'manage_sc_slide_posts_columns', 'storefront_child_slide_columns' );
+function storefront_child_slide_columns( $columns ) {
+	$new = array();
+
+	foreach ( $columns as $key => $label ) {
+		if ( 'title' === $key ) {
+			$new['storefront_child_slide_image'] = __( 'Grafika', 'storefront-child' );
+		}
+		$new[ $key ] = $label;
+	}
+
+	return $new;
+}
+
+add_action( 'manage_sc_slide_posts_custom_column', 'storefront_child_slide_column_content', 10, 2 );
+function storefront_child_slide_column_content( $column, $post_id ) {
+	if ( 'storefront_child_slide_image' !== $column ) {
+		return;
+	}
+
+	if ( has_post_thumbnail( $post_id ) ) {
+		echo get_the_post_thumbnail( $post_id, array( 120, 40 ) );
+	} else {
+		echo '<em>' . esc_html__( 'Brak grafiki', 'storefront-child' ) . '</em>';
+	}
+}
+
+/**
+ * The slides to render, in display order.
+ *
+ * Slides without a featured image are dropped rather than rendered as an empty
+ * frame — a half-filled draft in the list should not punch a hole in the
+ * homepage.
+ *
+ * The result is cached for the request because two callers need it: the
+ * enqueue below (to decide whether the script is needed at all) and the render
+ * hook. It is also filterable, which is what makes the markup testable without
+ * writing slides to the database.
+ *
+ * @return array List of array( image_id, title, url ).
+ */
+function storefront_child_get_homepage_slides() {
+	static $slides = null;
+
+	if ( null !== $slides ) {
+		return $slides;
+	}
+
+	$slides = array();
+
+	$posts = get_posts(
+		array(
+			'post_type'        => 'sc_slide',
+			'post_status'      => 'publish',
+			'numberposts'      => -1,
+			'orderby'          => array(
+				'menu_order' => 'ASC',
+				'date'       => 'DESC',
+			),
+			'suppress_filters' => false,
+		)
+	);
+
+	foreach ( $posts as $slide ) {
+		$image_id = (int) get_post_thumbnail_id( $slide );
+
+		if ( ! $image_id ) {
+			continue;
+		}
+
+		$slides[] = array(
+			'image_id' => $image_id,
+			'title'    => $slide->post_title,
+			'url'      => (string) get_post_meta( $slide->ID, '_storefront_child_slide_url', true ),
+		);
+	}
+
+	/**
+	 * Filter the homepage slides.
+	 *
+	 * @param array $slides List of array( image_id, title, url ).
+	 */
+	$slides = apply_filters( 'storefront_child_homepage_slides', $slides );
+
+	return $slides;
+}
+
+/**
+ * Should the slider render on this request?
+ *
+ * is_front_page() is true only for the static page set as the front page, so
+ * the slider never appears on the blog index, the shop archive or anywhere
+ * else. is_paged() excludes paginated views of that page, where a banner
+ * repeated above page 2 of a listing is just noise.
+ *
+ * @return bool
+ */
+function storefront_child_show_homepage_slider() {
+	return is_front_page()
+		&& ! is_paged()
+		&& (bool) storefront_child_get_homepage_slides();
+}
+
+/**
+ * Print the slider directly below the primary navigation.
+ *
+ * `storefront_before_content` fires in the parent theme's header.php between
+ * </header> and <div id="content">, which is exactly the gap under the nav bar.
+ * Priority 5 puts the banner above the two callbacks the parent already hooks
+ * there at 10 (storefront_header_widget_region and woocommerce_breadcrumb), so
+ * it stays flush with the navigation.
+ *
+ * The template wraps itself in .col-full, so the slider spans the same width
+ * as the content + sidebar row beneath it rather than the narrower content
+ * column.
+ */
+add_action( 'storefront_before_content', 'storefront_child_homepage_slider', 5 );
+function storefront_child_homepage_slider() {
+	if ( ! storefront_child_show_homepage_slider() ) {
+		return;
+	}
+
+	get_template_part(
+		'template-parts/homepage-slider',
+		null,
+		array( 'slides' => storefront_child_get_homepage_slides() )
+	);
 }
