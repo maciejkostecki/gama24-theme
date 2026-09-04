@@ -760,3 +760,33 @@ function storefront_child_homepage_slider() {
 		array( 'slides' => storefront_child_get_homepage_slides() )
 	);
 }
+
+
+/*
+ * Hide parcel-machine shipping for big parcels.
+ */
+add_filter( 'woocommerce_package_rates', 'gama_ukryj_paczkomaty_dla_duzych_paczek', 100, 2 );
+function gama_ukryj_paczkomaty_dla_duzych_paczek( $rates, $package ) {
+	$klasa = 'duze-wymiary';
+	$ukryj = array( 'easypack_parcel_machines', 'inpost_paczkomaty' ); // uzupełnij wg kroku 3
+
+	$duze = false;
+	foreach ( $package['contents'] as $item ) {
+		if ( $item['data']->get_shipping_class() === $klasa ) {
+			$duze = true;
+			break;
+		}
+	}
+
+	if ( ! $duze ) {
+		return $rates;
+	}
+
+	foreach ( $rates as $id => $rate ) {
+		if ( in_array( $rate->get_method_id(), $ukryj, true ) ) {
+			unset( $rates[ $id ] );
+		}
+	}
+
+	return $rates;
+}
