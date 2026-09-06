@@ -790,3 +790,20 @@ function gama_ukryj_paczkomaty_dla_duzych_paczek( $rates, $package ) {
 
 	return $rates;
 }
+
+/**
+ * Remove the footer credit block (`.site-footer .site-info`).
+ *
+ * The parent theme prints the copyright line, the "Built with WooCommerce"
+ * credit and the privacy policy link inside a single `.site-info` div via
+ * storefront_credit(). Dropping the action removes the markup outright rather
+ * than hiding it with CSS.
+ *
+ * We hook `init` because the parent's functions.php — which registers the
+ * action — is loaded after the child's, so a top-level remove_action() would
+ * run too early to match.
+ */
+add_action( 'init', 'storefront_child_remove_footer_credit' );
+function storefront_child_remove_footer_credit() {
+	remove_action( 'storefront_footer', 'storefront_credit', 20 );
+}
