@@ -928,6 +928,20 @@ function storefront_child_remove_pingback_header( $headers ) {
 }
 
 /**
+ * Stop advertising xmlrpc.php through the RSD discovery tag.
+ *
+ * Core prints `<link rel="EditURI" href=".../xmlrpc.php?rsd">` from a wp_head
+ * action, so unlike the pingback tag — which is hardcoded in Storefront's
+ * template and needed the header.php override — this one comes off with a
+ * hook. Default priority, so no third argument.
+ *
+ * This de-advertises XML-RPC; it does not disable it. Turning the endpoint off
+ * outright is a separate decision: the jetpack/v4 namespace registered by
+ * WooCommerce's connection package uses XML-RPC for site connection.
+ */
+remove_action( 'wp_head', 'rsd_link' );
+
+/**
  * Remove the comments REST routes.
  *
  * `comments_open` gates writes only — the controller checks it in create_item.
