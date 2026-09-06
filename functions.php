@@ -807,3 +807,168 @@ add_action( 'init', 'storefront_child_remove_footer_credit' );
 function storefront_child_remove_footer_credit() {
 	remove_action( 'storefront_footer', 'storefront_credit', 20 );
 }
+
+/**
+ * ==========================================================================
+ * Discussion off, site-wide: WordPress comments and WooCommerce reviews.
+ *
+ * WordPress has no single switch for this — discussion is per-post state plus
+ * a scatter of settings — and WooCommerce reviews are comments underneath, so
+ * both are closed here in one place.
+ *
+ * `comments_open` is the load-bearing filter. Core gates every write path on
+ * it: the front-end form, direct POSTs to wp-comments-post.php through
+ * wp_handle_comment_submission(), the REST controller's create_item, and
+ * XML-RPC's wp.newComment. `pings_open` does the same for pingback.ping.
+ * Between them nothing can be submitted from anywhere, which is why there is
+ * no separate REST or XML-RPC unhooking below. The rest of this section covers
+ * what those two filters do not reach: rows already stored, the defaults new
+ * content inherits, and the admin UI.
+ *
+ * Priority 20 throughout, to land after anything hooking at the default 10.
+ * ==========================================================================
+ */
+
+add_filter( 'comments_open', '__return_false', 20 );
+add_filter( 'pings_open', '__return_false', 20 );
+
+/**
+ * Hide comments that are already in the database.
+ *
+ * `comments_open` governs new submissions only — stored rows still render. The
+ * one-off cleanup empties the table, and this keeps the front end correct if a
+ * row is ever restored from a backup or inserted in code.
+ *
+ * This filter only applies to comments_template() on the front end, so
+ * WooCommerce order notes — comments with comment_type 'order_note', read in
+ * wp-admin via wc_get_order_notes() — are untouched.
+ */
+add_filter( 'comments_array', '__return_empty_array', 20 );
+
+/**
+ * New content is created closed.
+ *
+ * Filtering the options rather than writing them keeps the state declared in
+ * code, so it cannot drift back via Settings → Discussion.
+ */
+add_filter( 'pre_option_default_comment_status', 'storefront_child_discussion_closed' );
+add_filter( 'pre_option_default_ping_status', 'storefront_child_discussion_closed' );
+function storefront_child_discussion_closed() {
+	return 'closed';
+}
+
+/**
+ * Product reviews off at the source.
+ *
+ * This is WooCommerce's own switch and the supported way to remove reviews: it
+ * drops the Reviews tab, the rating stars and the review form, and it is the
+ * condition under which WooCommerce adds `comments` support to the `product`
+ * post type in the first place (class-wc-post-types.php). Forcing it here
+ * rather than stripping that support by hand keeps WooCommerce's own code
+ * paths internally consistent.
+ *
+ * Note this makes WooCommerce → Settings → Products → "Enable product reviews"
+ * inert: it will read as off, and toggling it changes nothing while this
+ * filter is in place.
+ */
+add_filter( 'pre_option_woocommerce_enable_reviews', 'storefront_child_reviews_disabled' );
+function storefront_child_reviews_disabled() {
+	return 'no';
+}
+
+/**
+ * Drop comment support so the editor stops offering a Discussion panel.
+ *
+ * `shop_order` is deliberately excluded: order notes are stored as comments,
+ * and that post type's comment support is part of how they work. `product`
+ * needs no entry here — with reviews disabled above, WooCommerce never adds
+ * comment support to it at all.
+ *
+ * Priority 100 on `init` so every post type — WooCommerce's, and this theme's
+ * own sc_slide — is registered before we walk the list.
+ */
+add_action( 'init', 'storefront_child_remove_comment_support', 100 );
+function storefront_child_remove_comment_support() {
+	$keep = array( 'shop_order' );
+
+	foreach ( get_post_types() as $post_type ) {
+		if ( in_array( $post_type, $keep, true ) ) {
+			continue;
+		}
+
+		remove_post_type_support( $post_type, 'comments' );
+		remove_post_type_support( $post_type, 'trackbacks' );
+	}
+}
+
+/**
+ * Take the Comments UI out of wp-admin.
+ */
+add_action( 'admin_menu', 'storefront_child_remove_comments_menu' );
+function storefront_child_remove_comments_menu() {
+	remove_menu_page( 'edit-comments.php' );
+}
+
+add_action( 'admin_bar_menu', 'storefront_child_remove_comments_admin_bar', 999 );
+function storefront_child_remove_comments_admin_bar( $wp_admin_bar ) {
+	$wp_admin_bar->remove_node( 'comments' );
+}
+
+/**
+ * Stop advertising the pingback endpoint.
+ *
+ * `pings_open` already refuses the calls; this removes the X-Pingback header
+ * that invites them in the first place.
+ */
+add_filter( 'wp_headers', 'storefront_child_remove_pingback_header' );
+function storefront_child_remove_pingback_header( $headers ) {
+	unset( $headers['X-Pingback'] );
+
+	return $headers;
+}
+
+/**
+ * Remove the comments REST routes.
+ *
+ * `comments_open` gates writes only — the controller checks it in create_item.
+ * Reading approved comments over /wp/v2/comments is public and ungated, so any
+ * row still in the table stays fetchable even with discussion closed
+ * everywhere else. Dropping the routes closes that last path without touching
+ * the database.
+ *
+ * WooCommerce reviews ride on its own Store API namespace, not this one, and
+ * return nothing while reviews are disabled above.
+ */
+add_filter( 'rest_endpoints', 'storefront_child_remove_comment_rest_routes' );
+function storefront_child_remove_comment_rest_routes( $endpoints ) {
+	unset( $endpoints['/wp/v2/comments'] );
+	unset( $endpoints['/wp/v2/comments/(?P<id>[\d]+)'] );
+
+	return $endpoints;
+}
+
+/**
+ * Turn off the comment feeds.
+ *
+ * Feeds build their own query and so are reached by neither `comments_open`
+ * nor the `comments_array` filter above: /comments/feed/ and each post's own
+ * /feed/ will happily syndicate any row still in the table. 410 rather than
+ * 404, since these feeds existed and have been withdrawn deliberately.
+ *
+ * Priority 9 to run before the feed template loads.
+ */
+add_action( 'template_redirect', 'storefront_child_block_comment_feeds', 9 );
+function storefront_child_block_comment_feeds() {
+	if ( is_comment_feed() ) {
+		wp_die(
+			esc_html__( 'Comments are closed.', 'storefront-child' ),
+			'',
+			array( 'response' => 410 )
+		);
+	}
+}
+
+/**
+ * Stop advertising the comment feed in <head>.
+ */
+add_filter( 'feed_links_show_comments_feed', '__return_false' );
