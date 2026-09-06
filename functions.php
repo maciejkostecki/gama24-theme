@@ -972,3 +972,99 @@ function storefront_child_block_comment_feeds() {
  * Stop advertising the comment feed in <head>.
  */
 add_filter( 'feed_links_show_comments_feed', '__return_false' );
+
+/**
+ * ==========================================================================
+ * Author disclosure: closed.
+ *
+ * WordPress hands out usernames from several places, only some of which are
+ * the REST API — which is why turning the API off would not have covered this.
+ * Before these hooks, production leaked two accounts: `gama` via
+ * /wp-json/wp/v2/users, and `wweb` via the oembed endpoint, with /?author=2
+ * redirecting to /author/gama/ to confirm the slug.
+ *
+ * The API itself stays on. It has to: Contact Form 7 posts submissions to
+ * contact-form-7/v1 with a public permission callback, the block add-to-cart
+ * on the homepage talks to wc/store/v1, and the editor and WooCommerce admin
+ * screens run on wp/v2 and wc-admin. Only the routes that disclose users are
+ * closed, and only to visitors who are not logged in.
+ * ==========================================================================
+ */
+
+/**
+ * Hide the users endpoint from logged-out requests.
+ *
+ * Conditional rather than absolute: the block editor reads /wp/v2/users to
+ * populate its author control, so removing the route outright would break
+ * editing. Logged out gets a 404; logged in is untouched.
+ */
+add_filter( 'rest_endpoints', 'storefront_child_hide_users_endpoint' );
+function storefront_child_hide_users_endpoint( $endpoints ) {
+	if ( is_user_logged_in() ) {
+		return $endpoints;
+	}
+
+	unset( $endpoints['/wp/v2/users'] );
+	unset( $endpoints['/wp/v2/users/(?P<id>[\d]+)'] );
+
+	return $endpoints;
+}
+
+/**
+ * Strip the author out of oembed responses.
+ *
+ * /wp-json/oembed/1.0/embed is public and returns author_name and author_url
+ * for any URL on the site. Embeds work the same without them.
+ */
+add_filter( 'oembed_response_data', 'storefront_child_remove_oembed_author' );
+function storefront_child_remove_oembed_author( $data ) {
+	unset( $data['author_name'], $data['author_url'] );
+
+	return $data;
+}
+
+/**
+ * Turn author archives into 404s.
+ *
+ * One check covers both disclosure routes: /author/<slug>/ and the /?author=N
+ * probe, which core's redirect_canonical() would otherwise answer with a 301
+ * to the archive — handing over the slug without ever loading a page.
+ *
+ * Priority 5 is load-bearing: redirect_canonical() runs on this same hook at
+ * 10, so the 404 has to be set before it gets a chance to redirect.
+ */
+add_action( 'template_redirect', 'storefront_child_disable_author_archives', 5 );
+function storefront_child_disable_author_archives() {
+	if ( ! is_author() ) {
+		return;
+	}
+
+	global $wp_query;
+
+	$wp_query->set_404();
+	status_header( 404 );
+	nocache_headers();
+}
+
+/**
+ * Point author links at the home page.
+ *
+ * Storefront prints an author link in the post meta of every blog post
+ * (storefront_post_meta()), assembled inline with no filter of its own, so the
+ * link cannot be removed without overriding the whole post header. With the
+ * archives 404ing above, those links would otherwise be dead ends.
+ */
+add_filter( 'author_link', 'storefront_child_author_link_home' );
+function storefront_child_author_link_home() {
+	return home_url( '/' );
+}
+
+/**
+ * Stop advertising the REST API in <head> and in the response headers.
+ *
+ * Obscurity rather than security — the endpoint sits at a well-known path and
+ * any scanner will try it regardless. Included because it is two lines, not
+ * because it holds anything back.
+ */
+remove_action( 'wp_head', 'rest_output_link_wp_head', 10 );
+remove_action( 'template_redirect', 'rest_output_link_header', 11 );
