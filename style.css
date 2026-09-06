@@ -208,6 +208,43 @@ ul.wc-block-grid__products {
   }
 }
 /* ==========================================================================
+   Product Collection: product names match the archive loop.
+   Storefront styles loop titles for the classic `ul.products` loop and for the
+   legacy grid blocks (`.wc-block-grid__product-title`), but ships nothing for
+   the Product Collection block, which renders the name as
+   `h2.wp-block-post-title > a`. Left unstyled it falls back to generic
+   page-content styling — 23px from Storefront's `.hentry .entry-content
+   .has-medium-font-size`, the #7f54b3 Customizer link color, and the underline
+   `.hentry .entry-content a` puts on every link in post content — against
+   16px / 400 / #333 / no underline in the archive loop.
+
+   The nesting is what makes the two diverge at all. The archive markup is
+   `a > h2`, so the heading color wins for the title text; the block is
+   `h2 > a`, so the link color does. `color: inherit` hands the heading color
+   back, and keeps tracking the Customizer rather than hardcoding #333.
+
+   `!important` is load-bearing on font-size and nowhere else: WordPress emits
+   `.has-medium-font-size { font-size: var(--wp--preset--font-size--medium)
+   !important }` — 23px here — which no amount of specificity can outweigh. The
+   other declarations win on specificity alone, this selector being (0,3,2)
+   against Storefront's (0,3,0).
+
+   Line-height and margins are deliberately left alone: the block prints those
+   inline from its own editor settings, so overriding them would need a second
+   `!important` and would quietly stop those controls working in the editor.
+   ========================================================================== */
+ul.wc-block-product-template li.wc-block-product .wp-block-post-title {
+  font-size: 1rem !important;
+  font-weight: 400;
+}
+ul.wc-block-product-template li.wc-block-product .wp-block-post-title > a {
+  color: inherit;
+  font-size: inherit;
+  font-weight: inherit;
+  text-decoration: none;
+}
+
+/* ==========================================================================
    Product Categories: collapsed accordion.
    Only top-level categories show; each parent has a caret to expand its
    children. Sub-lists are revealed by the .is-open class added in
