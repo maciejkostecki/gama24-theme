@@ -1082,3 +1082,93 @@ function storefront_child_author_link_home() {
  */
 remove_action( 'wp_head', 'rest_output_link_wp_head', 10 );
 remove_action( 'template_redirect', 'rest_output_link_header', 11 );
+
+
+
+/**
+ * RECAPTCHA v3 for WooCommerce My Account Registration Form.
+ * It is based on the reCaptcha keys for GAMA24 passed on by the contact form 7 plugin as variables.
+ * 
+ */
+
+/* ==========================================================================
+   reCAPTCHA v3 on the My Account registration form.
+
+   Reuses the keys from Contact Form 7 → Integrations and the google-recaptcha
+   script CF7 already enqueues, so there is one place to manage keys. If the
+   CF7 service is inactive, the check is skipped rather than blocking signups.
+   ========================================================================== */
+
+function storefront_child_recaptcha() {
+	if ( ! class_exists( 'WPCF7_RECAPTCHA' ) ) {
+		return null;
+	}
+	$service = WPCF7_RECAPTCHA::get_instance();
+	return $service->is_active() ? $service : null;
+}
+
+add_action( 'woocommerce_register_form', 'storefront_child_recaptcha_field' );
+function storefront_child_recaptcha_field() {
+	if ( storefront_child_recaptcha() ) {
+		echo '<input type="hidden" name="storefront_child_rc_token" value="">';
+	}
+}
+
+// Priority 30: after CF7 registers google-recaptcha at 20.
+add_action( 'wp_enqueue_scripts', 'storefront_child_recaptcha_script', 30 );
+function storefront_child_recaptcha_script() {
+	$service = storefront_child_recaptcha();
+	if ( ! $service || ! is_account_page() || is_user_logged_in() ) {
+		return;
+	}
+	wp_enqueue_script( 'google-recaptcha' );
+	wp_add_inline_script( 'google-recaptcha', sprintf( <<<'JS'
+document.addEventListener('DOMContentLoaded', function () {
+  var form = document.querySelector('form.woocommerce-form-register');
+  if (!form) return;
+  var sitekey = %s;
+  form.addEventListener('submit', function (e) {
+    if (form.dataset.rcDone) return;
+    e.preventDefault();
+    var go = function (token) {
+      form.querySelector('[name=storefront_child_rc_token]').value = token || '';
+      form.dataset.rcDone = '1';
+      form.requestSubmit(form.querySelector('[name=register]'));
+    };
+    // Script blocked: submit anyway, the server returns a readable error.
+    if (typeof grecaptcha === 'undefined') return go('');
+    grecaptcha.ready(function () {
+      grecaptcha.execute(sitekey, { action: 'register' }).then(go, function () { go(''); });
+    });
+  });
+});
+JS
+	, wp_json_encode( $service->get_sitekey() ) ) );
+}
+
+add_filter( 'woocommerce_process_registration_errors', 'storefront_child_recaptcha_verify' );
+function storefront_child_recaptcha_verify( $errors ) {
+	$service = storefront_child_recaptcha();
+	if ( ! $service ) {
+		return $errors;
+	}
+
+	$token = isset( $_POST['storefront_child_rc_token'] ) ? sanitize_text_field( wp_unslash( $_POST['storefront_child_rc_token'] ) ) : '';
+	$data  = array();
+
+	if ( $token ) {
+		$resp = wp_remote_post( 'https://www.google.com/recaptcha/api/siteverify', array(
+			'body' => array(
+				'secret'   => $service->get_secret( $service->get_sitekey() ),
+				'response' => $token,
+				'remoteip' => $_SERVER['REMOTE_ADDR'] ?? '',
+			),
+		) );
+		$data = is_wp_error( $resp ) ? array() : (array) json_decode( wp_remote_retrieve_body( $resp ), true );
+	}
+
+	if ( empty( $data['success'] ) || ( $data['action'] ?? '' ) !== 'register' || ( $data['score'] ?? 0 ) < $service->get_threshold() ) {
+		$errors->add( 'recaptcha', 'Weryfikacja antyspamowa nie powiodła się. Spróbuj ponownie.' );
+	}
+	return $errors;
+}
