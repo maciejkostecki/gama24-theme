@@ -486,6 +486,52 @@ h2.wp-block-heading.highlight {
 }
 
 /* --------------------------------------------------------------------------
+   Vibe rental button. The markup comes from Vibe's render.js, so it can't
+   carry Storefront's .button class: this restates Storefront's button metrics
+   and borrows the phone-order ghost style, as the other secondary way to buy.
+
+   Vibe's own stylesheet is appended to <head> after ours, so every rule is
+   scoped under .vibe-rental to outrank its bare #g4r-shop-button. Only
+   display needs !important, because Vibe sets it that way.
+   -------------------------------------------------------------------------- */
+
+.vibe-rental #g4r-shop-button {
+	display: inline-block !important;
+	max-width: none;
+	margin: 0 0 1em; // On the button, not the wrapper: no gap when Vibe removes it.
+	padding: 0.6180469716em 1.41575em;
+	border: 0;
+	background-color: #fff;
+	box-shadow: inset 0 0 0 2px $primary-red;
+	color: $primary-red;
+	font-size: inherit;
+	font-weight: 600;
+	text-decoration: none;
+	text-transform: none;
+
+	&:hover,
+	&:focus-visible {
+		background-color: $primary-red;
+		color: #fff;
+	}
+}
+
+/* Vibe's display:block !important defeats the script's own inline hiding, so
+   without this the button shows "Wynajmij od  zł/mc" until the rate arrives,
+   and flashes on products Vibe then removes it from. */
+.vibe-rental #g4r-shop-button:has(#g4r-button-rate:empty) {
+	display: none !important;
+}
+
+@media (max-width: 568px) {
+
+	.vibe-rental #g4r-shop-button {
+		width: 100%;
+		text-align: center;
+	}
+}
+
+/* --------------------------------------------------------------------------
    Callback-request dialog. Native <dialog>, so the browser handles the
    backdrop, focus trapping and Escape; only the panel needs styling.
    -------------------------------------------------------------------------- */

@@ -111,6 +111,18 @@ function storefront_child_scripts() {
 			'window.storefrontChildPhoneOrder = ' . wp_json_encode( storefront_child_phone_order_js_data() ) . ';',
 			'before'
 		);
+
+		if ( storefront_child_show_vibe_button() ) {
+			// Version null: the URL already carries a query string, and the
+			// file is Vibe's to cache-bust, not ours.
+			wp_enqueue_script(
+				'vibe-rental-button',
+				'https://api.vibe.pl/button/render.js?uuid=' . STOREFRONT_CHILD_VIBE_UUID,
+				array(),
+				null,
+				true
+			);
+		}
 	}
 }
 
@@ -380,6 +392,47 @@ function storefront_child_phone_order_standalone() {
 
 	storefront_child_phone_order_rendered( true );
 	get_template_part( 'template-parts/phone-order-button', null, array( 'standalone' => true ) );
+}
+
+/**
+ * Vibe "Wynajmij od X zł/mc" rental button.
+ *
+ * Vibe only ships one script, written for PrestaShop. render.js ignores where
+ * it is included: it waits for an anchor matched by a selector stored on
+ * Vibe's side for this shop — `#buy_block .box-cart-bottom > div:first-of-type`
+ * — and inserts its button after it. So we print an empty element that matches.
+ * If Vibe ever changes that selector, this markup must follow, or the button
+ * silently stops appearing.
+ *
+ * The script then fetches the monthly rate for the current page URL and removes
+ * the button when Vibe has none, so products Vibe doesn't know show nothing.
+ */
+define( 'STOREFRONT_CHILD_VIBE_UUID', '822594d9-cf1d-4f74-9605-a539fe4c9765' );
+
+/**
+ * In-stock products only: renting something that can't ship makes no sense.
+ * Shared by the anchor and the enqueue so the script never loads without it.
+ *
+ * @return bool
+ */
+function storefront_child_show_vibe_button() {
+	$product = wc_get_product( get_queried_object_id() );
+	return $product && $product->is_in_stock();
+}
+
+/**
+ * Priority 32: its own row under the add-to-cart area and the phone-order
+ * fallback (31), above the product meta (40). Not inside <form class="cart">:
+ * that row already holds two buttons, and on variable products it stays hidden
+ * until a variation is chosen.
+ */
+add_action( 'woocommerce_single_product_summary', 'storefront_child_vibe_anchor', 32 );
+function storefront_child_vibe_anchor() {
+	if ( ! storefront_child_show_vibe_button() ) {
+		return;
+	}
+
+	echo '<div id="buy_block" class="vibe-rental"><div class="box-cart-bottom"><div></div></div></div>';
 }
 
 /**
@@ -1171,4 +1224,21 @@ function storefront_child_recaptcha_verify( $errors ) {
 		$errors->add( 'recaptcha', 'Weryfikacja antyspamowa nie powiodła się. Spróbuj ponownie.' );
 	}
 	return $errors;
+}
+
+
+// ==========================================================================
+// SAVE & GO plugin support:
+// WooCommerce clips the publish box actions with overflow: hidden on the product edit screen.
+add_action( 'admin_enqueue_scripts', 'storefront_child_product_publish_actions_overflow', 20 );
+function storefront_child_product_publish_actions_overflow() {
+	$screen = get_current_screen();
+	if ( ! $screen || 'product' !== $screen->post_type ) {
+		return;
+	}
+
+	wp_add_inline_style(
+		'woocommerce_admin_styles',
+		'body.wc-wp-version-gte-70 #major-publishing-actions { overflow: visible; display: flow-root; }'
+	);
 }
