@@ -408,6 +408,21 @@ h2.wp-block-heading.highlight {
 .single-product form.cart:has(> .phone-order) .phone-order {
   flex: 0 1 auto;
 }
+.single-product form.cart:has(> .phone-order) {
+  /* Products with one unit in stock (or sold individually) get a hidden
+     quantity input. Its empty wrapper would otherwise still take a flex slot
+     and Storefront's right margin, indenting the buttons by ~22px. */
+}
+.single-product form.cart:has(> .phone-order) .quantity:has(> input[type=hidden]) {
+  display: none;
+}
+
+/* Storefront's clearfix pseudo-elements become empty flex items once the form
+   is a flex row, and the gap after the first one indents the whole row by
+   0.5em. Matches Storefront's own selector (div.product) to outrank it. */
+.single-product div.product form.cart:has(> .phone-order)::before, .single-product div.product form.cart:has(> .phone-order)::after {
+  content: none;
+}
 
 .phone-order {
   display: inline-flex;
