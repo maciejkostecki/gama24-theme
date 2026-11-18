@@ -1242,3 +1242,17 @@ function storefront_child_product_publish_actions_overflow() {
 		'body.wc-wp-version-gte-70 #major-publishing-actions { overflow: visible; display: flow-root; }'
 	);
 }
+
+
+// ==========================================================================
+// Hide Cash on Delivery for non-Polish customers.
+add_filter( 'woocommerce_available_payment_gateways', function ( $gateways ) {
+    if ( is_admin() || ! WC()->customer ) {
+        return $gateways;
+    }
+    $country = WC()->customer->get_shipping_country() ?: WC()->customer->get_billing_country();
+    if ( $country && 'PL' !== $country ) {
+        unset( $gateways['cod'] );
+    }
+    return $gateways;
+} );
